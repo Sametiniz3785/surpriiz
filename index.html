@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seni Seviyorum 💙</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      font-family: 'Montserrat', sans-serif;
+      background: #020711;
+    }
+
+    #canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    #message-container {
+      position: absolute;
+      z-index: 2;
+      bottom: 9%;
+      left: 5%;
+      width: 90%;
+      text-align: center;
+    }
+
+    #text {
+      color: #e4f3ff;
+      font-size: clamp(18px, 4.5vw, 28px);
+      font-weight: 400;
+      line-height: 1.8;
+      text-shadow: 0 0 12px rgba(65, 156, 255, 0.65);
+      overflow-wrap: anywhere;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1.1em;
+      background: #8bd8ff;
+      margin-left: 4px;
+      vertical-align: middle;
+      animation: blink 0.8s infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <canvas id="canvas"></canvas>
+
+  <div id="message-container">
+    <div id="text"></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const textElement = document.getElementById('text');
+
+    const message =
+      "Seni çok seviyorum, sen benim için en güzel şeysin balım 💙";
+
+    const PARTICLE_COUNT = 550;
+    const OUTLINE_COUNT = 150;
+    const STAR_COUNT = 45;
+    const FORMATION_DURATION = 5000;
+
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+
+    let particles = [];
+    let stars = [];
+    let startTime = null;
+    let textStarted = false;
+    let lastFrame = 0;
+
+    let scale = 1;
+    let centerX = 0;
+    let centerY = 0;
+
+    // Kalp denklemi
+    function heartPoint(t) {
+      return {
+        x: 16 * Math.pow(Math.sin(t), 3) / 17,
+        y: -(
+          13 * Math.cos(t)
+          - 5 * Math.cos(2 * t)
+          - 2 * Math.cos(3 * t)
+          - Math.cos(4 * t)
+        ) / 17
+      };
+    }
+
+    function isInsideHeart(x, y) {
+      const a = x * x + y * y - 1;
+      return a * a * a - x * x * y * y * y <= 0;
+    }
+
+    function randomHeartPoint() {
+      let x, y;
+
+      do {
+        x = Math.random() * 2 - 1;
+        y = Math.random() * 2 - 1;
+      } while (!isInsideHeart(x, y));
+
+      return { x, y };
+    }
+
+    function setupCanvas() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+
+      // Mobil cihazlarda performans için piksel oranını sınırla
+      dpr = Math.min(window.devicePixelRatio || 1, 1.25);
+
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      scale = Math.min(width * 0.34, height * 0.27, 175);
+      centerX = width / 2;
+      centerY = height * 0.39;
+
+      createStars();
+      createParticles();
+    }
+
+    function createStars() {
+      stars = [];
+
+      for (let i = 0; i < STAR_COUNT; i++) {
+        stars.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          size: Math.random() * 1.2 + 0.3,
+          phase: Math.random() * 6.28
+        });
+      }
+    }
+
+    function createParticles() {
+      particles = [];
+
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const outline = i < OUTLINE_COUNT;
+
+        const target = outline
+          ? heartPoint(Math.random() * Math.PI * 2)
+          : randomHeartPoint();
+
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.max(width, height) *
+          (0.55 + Math.random() * 0.65);
+
+        particles.push({
+          sx: centerX + Math.cos(angle) * distance,
+          sy: centerY + Math.sin(angle) * distance,
+          tx: centerX + target.x * scale,
+          ty: centerY + target.y * scale,
+          size: outline
+            ? Math.random() * 1.4 + 0.9
+            : Math.random() * 2 + 0.5,
+          delay: Math.random() * 0.24,
+          phase: Math.random() * 6.28,
+          color: outline
+            ? (Math.random() > 0.5 ? '#8fe4ff' : '#329dff')
+            : ['#17488e', '#236bc0', '#3189df', '#5ab9f5', '#b5eaff'][
+                Math.floor(Math.random() * 5)
+              ],
+          outline
+        });
+      }
+    }
+
+    function drawBackground(time) {
+      ctx.fillStyle = '#06132b';
+      ctx.fillRect(0, 0, width, height);
+
+      const glow = ctx.createRadialGradient(
+        centerX, centerY, 5,
+        centerX, centerY, Math.max(width, height) * 0.65
+      );
+
+      glow.addColorStop(0, '#102c5b');
+      glow.addColorStop(0.55, '#08172f');
+      glow.addColorStop(1, '#020711');
+
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, width, height);
+
+      for (const star of stars) {
+        const alpha =
+          0.3 + 0.45 * (
+            0.5 + 0.5 * Math.sin(time * 0.0015 + star.phase)
+          );
+
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#a8d9ff';
+        ctx.fillRect(star.x, star.y, star.size, star.size);
+      }
+
+      ctx.globalAlpha = 1;
+    }
+
+    function easeOut(t) {
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    function drawParticles(time, progress) {
+      const beat = progress >= 1
+        ? 1 + Math.max(0, Math.sin(time * 0.003)) * 0.025
+        : 1;
+
+      for (const p of particles) {
+        const localProgress = Math.max(
+          0,
+          Math.min((progress - p.delay) / (1 - p.delay), 1)
+        );
+
+        const eased = easeOut(localProgress);
+
+        const x = centerX +
+          (p.sx - centerX) * (1 - eased) +
+          (p.tx - centerX) * eased * beat;
+
+        const y = centerY +
+          (p.sy - centerY) * (1 - eased) +
+          (p.ty - centerY) * eased * beat;
+
+        const twinkle =
+          0.7 + 0.3 * Math.sin(time * 0.002 + p.phase);
+
+        ctx.globalAlpha = (0.15 + eased * 0.85) * twinkle;
+        ctx.fillStyle = p.color;
+
+        ctx.beginPath();
+        ctx.arc(x, y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.globalAlpha = 1;
+    }
+
+    // Kalbin parlak dış çizgisi
+    function drawHeartOutline(progress) {
+      if (progress < 0.35) return;
+
+      ctx.globalAlpha = Math.min((progress - 0.35) * 2.5, 0.9);
+      ctx.strokeStyle = '#76d6ff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+
+      for (let i = 0; i <= 100; i++) {
+        const p = heartPoint((i / 100) * Math.PI * 2);
+        const x = centerX + p.x * scale;
+        const y = centerY + p.y * scale;
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+
+      ctx.closePath();
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // Kalbin içine yazı
+    function drawHeartText(progress, time) {
+      if (progress < 0.7) return;
+
+      ctx.save();
+
+      ctx.globalAlpha = Math.min((progress - 0.7) / 0.3, 1);
+
+      const pulse = 1 + Math.sin(time * 0.003) * 0.025;
+      const fontSize = Math.max(15, Math.min(scale * 0.19, 25));
+
+      ctx.translate(centerX, centerY);
+      ctx.scale(pulse, pulse);
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `500 ${fontSize}px Montserrat, sans-serif`;
+
+      // Hafif mavi yazı parlaması
+      ctx.shadowColor = '#45baff';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = '#eaf8ff';
+
+      ctx.fillText('sunişkom', 0, 0);
+
+      ctx.restore();
+    }
+
+    function typeWriter() {
+      let index = 0;
+
+      function type() {
+        if (index < message.length) {
+          textElement.textContent = message.substring(0, index + 1);
+
+          const cursor = document.createElement('span');
+          cursor.className = 'cursor';
+          textElement.appendChild(cursor);
+
+          index++;
+          setTimeout(type, 65);
+        } else {
+          textElement.textContent = message;
+
+          const cursor = document.createElement('span');
+          cursor.className = 'cursor';
+          textElement.appendChild(cursor);
+        }
+      }
+
+      type();
+    }
+
+    function animate(time) {
+      // Yaklaşık 30 FPS: mobil cihazlarda daha az yük
+      if (time - lastFrame < 33) {
+        requestAnimationFrame(animate);
+        return;
+      }
+
+      lastFrame = time;
+
+      if (startTime === null) startTime = time;
+
+      const progress = Math.min(
+        (time - startTime) / FORMATION_DURATION,
+        1
+      );
+
+      drawBackground(time);
+      drawParticles(time, progress);
+      drawHeartOutline(progress);
+      drawHeartText(progress, time);
+
+      if (progress >= 0.85 && !textStarted) {
+        textStarted = true;
+        typeWriter();
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    window.addEventListener('resize', setupCanvas);
+
+    setupCanvas();
+    requestAnimationFrame(animate);
+  </script>
+
+</body>
+  </html>
